@@ -1,0 +1,48 @@
+name: Deploy Static Website to Google Cloud Storage
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy-static-site:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Build Leaflet map assets with Gulp
+        run: npm run gulp leaflet
+
+      - name: Generate HTML files with Gulp using backend URL
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: npm run gulp html
+
+      - name: Generate and minify Tailwind CSS
+        run: npx tailwindcss -i ./src/css/style.css -o ./dist/css/style.css --minify
+
+      - name: Configure Google Cloud authentication
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Initialize Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Sync and deploy files to Google Cloud Storage bucket
+        run: |
+          gsutil -m rsync -r ./dist gs://${{ secrets.GCP_BUCKET }}
