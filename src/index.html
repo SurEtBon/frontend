@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
+    <script src="./vendor/leaflet/leaflet.js"></script>
+    <link href="./css/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="fixed left-5 right-5 top-5 z-[999]">
+      <input
+        id="locationInput"
+        type="search"
+        id="locationInput"
+        placeholder="Rechercher une adresse"
+        aria-label="Recherche d'une adresse"
+        class="peer relative h-12 w-full rounded border border-slate-200 px-4 pr-12 text-slate-500 outline-none transition-all autofill:bg-white invalid:border-pink-500 invalid:text-pink-500 focus:border-emerald-500 focus:outline-none invalid:focus:border-pink-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        onclick="restaurantCard.classList.add('hidden');"
+      />
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="absolute right-4 top-3 h-6 w-6 cursor-pointer stroke-slate-400 peer-disabled:cursor-not-allowed"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        aria-hidden="true"
+        aria-label="Icône de recherche"
+        role="graphics-symbol"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+        />
+      </svg>
+    </div>
+
+    <div
+      id="locationsContainer"
+      class="fixed left-0 top-0 z-[999] flex hidden h-screen w-screen items-center justify-center bg-slate-300/20 backdrop-blur-sm"
+      aria-labelledby="header-3a content-3a"
+      aria-modal="true"
+      tabindex="-1"
+      role="dialog"
+    >
+      <div
+        class="flex max-h-[90vh] w-11/12 max-w-xl flex-col gap-6 overflow-hidden rounded bg-white p-6 text-slate-500 shadow-xl shadow-slate-700/10"
+        id="modal"
+        role="document"
+      >
+        <header id="header-3a" class="flex items-center gap-4">
+          <h3 class="flex-1 text-xl font-medium text-slate-700">
+            Sélectionner une adresse
+          </h3>
+        </header>
+        <div id="content-3a" class="flex-1 overflow-auto">
+          <ul id="locationsList" class="divide-y divide-slate-100"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+    <div
+      id="restaurantCard"
+      class="fixed bottom-0 left-0 right-0 z-[999] hidden border border-gray-100 bg-white p-5 pb-10 shadow-2xl"
+    ></div>
+  </body>
+  <script>
+    var BACKEND_URL = "<!-- @echo BACKEND_URL -->";
+
+    let locationInput = document.getElementById("locationInput");
+    let locationsContainer = document.getElementById("locationsContainer");
+    let locationsList = document.getElementById("locationsList");
+    let restaurantCard = document.getElementById("restaurantCard");
+
+    var map = L.map("map", { zoomControl: false, dragging: false }).setView(
+      [46.603354, 1.8883335],
+      16,
+    );
+
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      {
+        minZoom: 16,
+        maxZoom: 16,
+        subdomains: "abcd",
+        detectRetina: true,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      },
+    ).addTo(map);
+
+    let markersGroup = L.layerGroup();
+    markersGroup.addTo(map);
+
+    let timeoutId = null;
+
+    map.on("moveend", function () {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        var bounds = map.getBounds();
+        var southWest = bounds.getSouthWest();
+        var northEast = bounds.getNorthEast();
+        <!-- @ifdef DEBUG -->
+        console.log({
+          latitude_minimum: southWest.lat,
+          longitude_minimum: southWest.lng,
+          latitude_maximum: northEast.lat,
+          longitude_maximum: northEast.lng,
+        });
+        <!-- @endif -->
+        fetch(BACKEND_URL + "/get_restaurants", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            latitude_minimum: southWest.lat,
+            longitude_minimum: southWest.lng,
+            latitude_maximum: northEast.lat,
+            longitude_maximum: northEast.lng,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            <!-- @ifdef DEBUG -->
+            console.log(data.restaurants);
+            <!-- @endif -->
+            markersGroup.clearLayers();
+            data.restaurants.forEach((restaurant) => {
+              let iea_couleur_synthese_eval_sanit = "black";
+              if (restaurant.iea_app_code_synthese_eval_sanit == 1) {
+                iea_couleur_synthese_eval_sanit = "darkgreen";
+              } else if (restaurant.iea_app_code_synthese_eval_sanit == 2) {
+                iea_couleur_synthese_eval_sanit = "darkorange";
+              } else if (restaurant.iea_app_code_synthese_eval_sanit == 3) {
+                iea_couleur_synthese_eval_sanit = "darkred";
+              } else if (restaurant.iea_app_code_synthese_eval_sanit == 4) {
+                iea_couleur_synthese_eval_sanit = "black";
+              }
+              let marker = L.circleMarker(
+                [
+                  restaurant.iofff_meta_geo_point_latitude,
+                  restaurant.iofff_meta_geo_point_longitude,
+                ],
+                {
+                  color: iea_couleur_synthese_eval_sanit,
+                },
+              );
+              marker.on("click", function () {
+                restaurantCard.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-gray-900">${restaurant.iofff_name}</h3>
+                        <button onclick="restaurantCard.classList.add('hidden');" class="text-gray-500 text-xl">&times;</button>
+                    </div>
+                    <div class="sm:flex sm:justify-between">
+                        <p class="mt-1 text-xs font-medium" style="color:${iea_couleur_synthese_eval_sanit};">Niveau d'hygiène ${restaurant.iea_synthese_eval_sanit.toLowerCase()}</p>
+                    </div>
+                    <div class="mt-4">
+                      <p class="text-pretty text-sm text-gray-500">${restaurant.iea_full_address}</p>
+                    </div>
+                    <dl class="mt-6 flex gap-4 sm:gap-6">
+                      ${
+                        restaurant.sgmppd_rating
+                          ? `<a href=" ${restaurant.sgmppd_googleMapsUri}" target="_blank">
+                      <div class="flex flex-col-reverse">
+                        <dd class="text-xs text-gray-500">${restaurant.sgmppd_rating} (${restaurant.sgmppd_userRatingCount} avis)</dd>
+                        <dt class="text-sm font-medium text-gray-600">Google Maps</dt>
+                      </div></a>`
+                          : ""
+                      }
+                      ${
+                        restaurant.stld_rating
+                          ? `<a href=" ${restaurant.stld_web_url}" target="_blank">
+                      <div class="flex flex-col-reverse">
+                        <dd class="text-xs text-gray-500">${restaurant.stld_rating} (${restaurant.stld_num_reviews} avis)</dd>
+                        <dt class="text-sm font-medium text-gray-600">Tripadvisor</dt>
+                      </div></a>`
+                          : ""
+                      }
+                    </dl>
+                    `;
+                restaurantCard.classList.remove("hidden");
+              });
+              marker.addTo(markersGroup);
+            });
+          })
+          .catch((error) => {
+            console.error(error);
+            throw error;
+          });
+      }, 0);
+    });
+
+    map.locate({ setView: true, enableHighAccuracy: true });
+
+    function fillLocationInputFromReverseGeocoding(latitude, longitude) {
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          locationInput.value = data.display_name;
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }
+
+    map.on("locationfound", function onLocationFound(e) {
+      var radius = e.accuracy;
+      var latitude = e.latitude;
+      var longitude = e.longitude;
+      fillLocationInputFromReverseGeocoding(latitude, longitude);
+    });
+
+    map.on("locationerror", function onLocationError(e) {
+      console.error(e.message);
+      fetch("https://freeipapi.com/api/json")
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.latitude && data.longitude) {
+            map.setView([data.latitude, data.longitude], 18);
+            fillLocationInputFromReverseGeocoding(
+              data.latitude,
+              data.longitude,
+            );
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    });
+
+    function defineLocation(locationItem) {
+      map.setView([locationItem.lat, locationItem.lon], 18);
+      locationInput.value = locationItem.display_name;
+    }
+
+    let locations = {};
+
+    function chooseLocation(event) {
+      const li = event.currentTarget;
+
+      osm_id = li.getAttribute("osm_id");
+      osm_id = parseInt(osm_id);
+
+      locationItem = locations[osm_id];
+
+      locationsList.innerHTML = "";
+      locationsContainer.classList.add("hidden");
+
+      defineLocation(locationItem);
+    }
+
+    function searchLocation(locationInputValue) {
+      fetch(
+        `https://nominatim.openstreetmap.org/search?q=${locationInputValue}&format=json&addressdetails=1&accept-language=fr&countrycodes=fr`,
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.length == 1) {
+            locationItem = data[0];
+            defineLocation(locationItem);
+          } else if (data.length > 1) {
+            data.forEach((locationItem) => {
+              locations[locationItem.osm_id] = locationItem;
+
+              const li = document.createElement("li");
+              li.setAttribute("osm_id", locationItem.osm_id);
+              li.classList.add("flex", "items-start", "gap-4", "px-4", "py-3");
+
+              const div = document.createElement("div");
+              div.classList.add(
+                "flex",
+                "flex-col",
+                "gap-0",
+                "min-h-[2rem]",
+                "items-start",
+                "justify-center",
+              );
+              li.appendChild(div);
+
+              const h4 = document.createElement("h4");
+              h4.classList.add("text-base", "text-slate-700");
+              h4.textContent = locationItem.display_name;
+              div.appendChild(h4);
+
+              li.onclick = chooseLocation;
+
+              locationsList.appendChild(li);
+              locationsContainer.classList.remove("hidden");
+            });
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }
+
+    locationInput.addEventListener("keyup", function (event) {
+      if (event.key === "Enter") {
+        searchLocation(this.value);
+      }
+    });
+  </script>
+</html>
