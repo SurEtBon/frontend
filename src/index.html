@@ -71,14 +71,14 @@
     ></div>
   </body>
   <script>
-    var BACKEND_URL = "<!-- @echo BACKEND_URL -->";
+    const BACKEND_URL = "<!-- @echo BACKEND_URL -->";
 
-    let locationInput = document.getElementById("locationInput");
-    let locationsContainer = document.getElementById("locationsContainer");
-    let locationsList = document.getElementById("locationsList");
-    let restaurantCard = document.getElementById("restaurantCard");
+    const locationInput = document.getElementById("locationInput");
+    const locationsContainer = document.getElementById("locationsContainer");
+    const locationsList = document.getElementById("locationsList");
+    const restaurantCard = document.getElementById("restaurantCard");
 
-    var map = L.map("map", { zoomControl: false, dragging: false }).setView(
+    const map = L.map("map", { zoomControl: false }).setView(
       [46.603354, 1.8883335],
       16,
     );
@@ -87,7 +87,7 @@
       "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
         minZoom: 16,
-        maxZoom: 16,
+        maxZoom: 18,
         subdomains: "abcd",
         detectRetina: true,
         attribution:
@@ -95,108 +95,149 @@
       },
     ).addTo(map);
 
-    let markersGroup = L.layerGroup();
+    const markersGroup = L.layerGroup();
     markersGroup.addTo(map);
 
     let timeoutId = null;
+
+    const latitude_buffer = 0.0225,
+      longitude_buffer = 0.0325;
+
+    let latitude_minimum,
+      longitude_minimum,
+      latitude_maximum,
+      longitude_maximum;
 
     map.on("moveend", function () {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
       timeoutId = setTimeout(() => {
-        var bounds = map.getBounds();
-        var southWest = bounds.getSouthWest();
-        var northEast = bounds.getNorthEast();
+        const bounds = map.getBounds();
+        const southWest = bounds.getSouthWest();
+        const northEast = bounds.getNorthEast();
+        const tmp_latitude_minimum = southWest.lat,
+          tmp_longitude_minimum = southWest.lng;
+        const tmp_latitude_maximum = northEast.lat,
+          tmp_longitude_maximum = northEast.lng;
         <!-- @ifdef DEBUG -->
         console.log({
-          latitude_minimum: southWest.lat,
-          longitude_minimum: southWest.lng,
-          latitude_maximum: northEast.lat,
-          longitude_maximum: northEast.lng,
+          tmp_latitude_minimum: tmp_latitude_minimum,
+          tmp_longitude_minimum: tmp_longitude_minimum,
+          tmp_latitude_maximum: tmp_latitude_maximum,
+          tmp_longitude_maximum: tmp_longitude_maximum,
         });
         <!-- @endif -->
-        fetch(BACKEND_URL + "/get_restaurants", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            latitude_minimum: southWest.lat,
-            longitude_minimum: southWest.lng,
-            latitude_maximum: northEast.lat,
-            longitude_maximum: northEast.lng,
-          }),
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            <!-- @ifdef DEBUG -->
-            console.log(data.restaurants);
-            <!-- @endif -->
-            markersGroup.clearLayers();
-            data.restaurants.forEach((restaurant) => {
-              let iea_couleur_synthese_eval_sanit = "black";
-              if (restaurant.iea_app_code_synthese_eval_sanit == 1) {
-                iea_couleur_synthese_eval_sanit = "darkgreen";
-              } else if (restaurant.iea_app_code_synthese_eval_sanit == 2) {
-                iea_couleur_synthese_eval_sanit = "darkorange";
-              } else if (restaurant.iea_app_code_synthese_eval_sanit == 3) {
-                iea_couleur_synthese_eval_sanit = "darkred";
-              } else if (restaurant.iea_app_code_synthese_eval_sanit == 4) {
-                iea_couleur_synthese_eval_sanit = "black";
-              }
-              let marker = L.circleMarker(
-                [
-                  restaurant.iofff_meta_geo_point_latitude,
-                  restaurant.iofff_meta_geo_point_longitude,
-                ],
-                {
-                  color: iea_couleur_synthese_eval_sanit,
-                },
-              );
-              marker.on("click", function () {
-                restaurantCard.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-xl font-bold text-gray-900">${restaurant.iofff_name}</h3>
-                        <button onclick="restaurantCard.classList.add('hidden');" class="text-gray-500 text-xl">&times;</button>
-                    </div>
-                    <div class="sm:flex sm:justify-between">
-                        <p class="mt-1 text-xs font-medium" style="color:${iea_couleur_synthese_eval_sanit};">Niveau d'hygiène ${restaurant.iea_synthese_eval_sanit.toLowerCase()}</p>
-                    </div>
-                    <div class="mt-4">
-                      <p class="text-pretty text-sm text-gray-500">${restaurant.iea_full_address}</p>
-                    </div>
-                    <dl class="mt-6 flex gap-4 sm:gap-6">
-                      ${
-                        restaurant.sgmppd_rating
-                          ? `<a href=" ${restaurant.sgmppd_googleMapsUri}" target="_blank">
-                      <div class="flex flex-col-reverse">
-                        <dd class="text-xs text-gray-500">${restaurant.sgmppd_rating} (${restaurant.sgmppd_userRatingCount} avis)</dd>
-                        <dt class="text-sm font-medium text-gray-600">Google Maps</dt>
-                      </div></a>`
-                          : ""
-                      }
-                      ${
-                        restaurant.stld_rating
-                          ? `<a href=" ${restaurant.stld_web_url}" target="_blank">
-                      <div class="flex flex-col-reverse">
-                        <dd class="text-xs text-gray-500">${restaurant.stld_rating} (${restaurant.stld_num_reviews} avis)</dd>
-                        <dt class="text-sm font-medium text-gray-600">Tripadvisor</dt>
-                      </div></a>`
-                          : ""
-                      }
-                    </dl>
-                    `;
-                restaurantCard.classList.remove("hidden");
-              });
-              marker.addTo(markersGroup);
-            });
+
+        let fetching = false;
+        if (
+          typeof latitude_minimum === "undefined" ||
+          southWest.lat < latitude_minimum ||
+          southWest.lng < longitude_minimum ||
+          northEast.lat > latitude_maximum ||
+          northEast.lng > longitude_maximum
+        ) {
+          const center = map.getCenter();
+          const lat = center.lat,
+            lng = center.lng;
+          latitude_minimum = lat - latitude_buffer;
+          longitude_minimum = lng - longitude_buffer;
+          latitude_maximum = lat + latitude_buffer;
+          longitude_maximum = lng + longitude_buffer;
+          fetching = true;
+        }
+        <!-- @ifdef DEBUG -->
+        console.log({
+          latitude_minimum: latitude_minimum,
+          longitude_minimum: longitude_minimum,
+          latitude_maximum: latitude_maximum,
+          longitude_maximum: longitude_maximum,
+          fetching: fetching,
+        });
+        <!-- @endif -->
+        if (fetching) {
+          fetch(BACKEND_URL + "/get_restaurants", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              latitude_minimum: latitude_minimum,
+              longitude_minimum: longitude_minimum,
+              latitude_maximum: latitude_maximum,
+              longitude_maximum: longitude_maximum,
+            }),
           })
-          .catch((error) => {
-            console.error(error);
-            throw error;
-          });
-      }, 0);
+            .then((response) => response.json())
+            .then((data) => {
+              <!-- @ifdef DEBUG -->
+              console.log(data.restaurants);
+              <!-- @endif -->
+              markersGroup.clearLayers();
+              data.restaurants.forEach((restaurant) => {
+                let iea_couleur_synthese_eval_sanit = "black";
+                if (restaurant.iea_app_code_synthese_eval_sanit == 1) {
+                  iea_couleur_synthese_eval_sanit = "darkgreen";
+                } else if (restaurant.iea_app_code_synthese_eval_sanit == 2) {
+                  iea_couleur_synthese_eval_sanit = "darkorange";
+                } else if (restaurant.iea_app_code_synthese_eval_sanit == 3) {
+                  iea_couleur_synthese_eval_sanit = "darkred";
+                } else if (restaurant.iea_app_code_synthese_eval_sanit == 4) {
+                  iea_couleur_synthese_eval_sanit = "black";
+                }
+                const marker = L.circleMarker(
+                  [
+                    restaurant.iofff_meta_geo_point_latitude,
+                    restaurant.iofff_meta_geo_point_longitude,
+                  ],
+                  {
+                    color: iea_couleur_synthese_eval_sanit,
+                  },
+                );
+                marker.on("click", function () {
+                  restaurantCard.innerHTML = `
+                      <div class="flex justify-between items-center">
+                          <h3 class="text-xl font-bold text-gray-900">${restaurant.iofff_name}</h3>
+                          <button onclick="restaurantCard.classList.add('hidden');" class="text-gray-500 text-xl">&times;</button>
+                      </div>
+                      <div class="sm:flex sm:justify-between">
+                          <p class="mt-1 text-xs font-medium" style="color:${iea_couleur_synthese_eval_sanit};">Niveau d'hygiène ${restaurant.iea_synthese_eval_sanit.toLowerCase()}</p>
+                      </div>
+                      <div class="mt-4">
+                        <p class="text-pretty text-sm text-gray-500">${restaurant.iea_full_address}</p>
+                      </div>
+                      <dl class="mt-6 flex gap-4 sm:gap-6">
+                        ${
+                          restaurant.sgmppd_rating
+                            ? `<a href=" ${restaurant.sgmppd_googleMapsUri}" target="_blank">
+                        <div class="flex flex-col-reverse">
+                          <dd class="text-xs text-gray-500">${restaurant.sgmppd_rating} (${restaurant.sgmppd_userRatingCount} avis)</dd>
+                          <dt class="text-sm font-medium text-gray-600">Google Maps</dt>
+                        </div></a>`
+                            : ""
+                        }
+                        ${
+                          restaurant.stld_rating
+                            ? `<a href=" ${restaurant.stld_web_url}" target="_blank">
+                        <div class="flex flex-col-reverse">
+                          <dd class="text-xs text-gray-500">${restaurant.stld_rating} (${restaurant.stld_num_reviews} avis)</dd>
+                          <dt class="text-sm font-medium text-gray-600">Tripadvisor</dt>
+                        </div></a>`
+                            : ""
+                        }
+                      </dl>
+                      `;
+                  restaurantCard.classList.remove("hidden");
+                });
+                marker.addTo(markersGroup);
+              });
+            })
+            .catch((error) => {
+              console.error(error);
+              throw error;
+            });
+        }
+      }, 500);
     });
 
     map.locate({ setView: true, enableHighAccuracy: true });
@@ -215,9 +256,9 @@
     }
 
     map.on("locationfound", function onLocationFound(e) {
-      var radius = e.accuracy;
-      var latitude = e.latitude;
-      var longitude = e.longitude;
+      const radius = e.accuracy;
+      const latitude = e.latitude;
+      const longitude = e.longitude;
       fillLocationInputFromReverseGeocoding(latitude, longitude);
     });
 
@@ -249,10 +290,10 @@
     function chooseLocation(event) {
       const li = event.currentTarget;
 
-      osm_id = li.getAttribute("osm_id");
+      let osm_id = li.getAttribute("osm_id");
       osm_id = parseInt(osm_id);
 
-      locationItem = locations[osm_id];
+      const locationItem = locations[osm_id];
 
       locationsList.innerHTML = "";
       locationsContainer.classList.add("hidden");
@@ -267,7 +308,7 @@
         .then((response) => response.json())
         .then((data) => {
           if (data.length == 1) {
-            locationItem = data[0];
+            const locationItem = data[0];
             defineLocation(locationItem);
           } else if (data.length > 1) {
             data.forEach((locationItem) => {
