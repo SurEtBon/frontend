@@ -175,52 +175,52 @@
               <!-- @endif -->
               markersGroup.clearLayers();
               data.restaurants.forEach((restaurant) => {
-                let iea_couleur_synthese_eval_sanit = "black";
-                if (restaurant.iea_app_code_synthese_eval_sanit == 1) {
-                  iea_couleur_synthese_eval_sanit = "darkgreen";
-                } else if (restaurant.iea_app_code_synthese_eval_sanit == 2) {
-                  iea_couleur_synthese_eval_sanit = "darkorange";
-                } else if (restaurant.iea_app_code_synthese_eval_sanit == 3) {
-                  iea_couleur_synthese_eval_sanit = "darkred";
-                } else if (restaurant.iea_app_code_synthese_eval_sanit == 4) {
-                  iea_couleur_synthese_eval_sanit = "black";
+                let ea_couleur_synthese_eval_sanit = "black";
+                if (restaurant.ea_app_code_synthese_eval_sanit == 1) {
+                  ea_couleur_synthese_eval_sanit = "darkgreen";
+                } else if (restaurant.ea_app_code_synthese_eval_sanit == 2) {
+                  ea_couleur_synthese_eval_sanit = "darkorange";
+                } else if (restaurant.ea_app_code_synthese_eval_sanit == 3) {
+                  ea_couleur_synthese_eval_sanit = "darkred";
+                } else if (restaurant.ea_app_code_synthese_eval_sanit == 4) {
+                  ea_couleur_synthese_eval_sanit = "black";
                 }
                 const marker = L.circleMarker(
                   [
-                    restaurant.iofff_meta_geo_point_latitude,
-                    restaurant.iofff_meta_geo_point_longitude,
+                    restaurant.osm_ffs_meta_geo_point_latitude,
+                    restaurant.osm_ffs_meta_geo_point_longitude,
                   ],
                   {
-                    color: iea_couleur_synthese_eval_sanit,
+                    color: ea_couleur_synthese_eval_sanit,
                   },
                 );
                 marker.on("click", function () {
                   restaurantCard.innerHTML = `
                       <div class="flex justify-between items-center">
-                          <h3 class="text-xl font-bold text-gray-900">${restaurant.iofff_name}</h3>
+                          <h3 class="text-xl font-bold text-gray-900">${restaurant.osm_ffs_name}</h3>
                           <button onclick="restaurantCard.classList.add('hidden');" class="text-gray-500 text-xl">&times;</button>
                       </div>
                       <div class="sm:flex sm:justify-between">
-                          <p class="mt-1 text-xs font-medium" style="color:${iea_couleur_synthese_eval_sanit};">Niveau d'hygiène ${restaurant.iea_synthese_eval_sanit.toLowerCase()}</p>
+                          <p class="mt-1 text-xs font-medium" style="color:${ea_couleur_synthese_eval_sanit};">Niveau d'hygiène ${restaurant.ea_synthese_eval_sanit.toLowerCase()}</p>
                       </div>
                       <div class="mt-4">
-                        <p class="text-pretty text-sm text-gray-500">${restaurant.iea_full_address}</p>
+                        <p class="text-pretty text-sm text-gray-500">${restaurant.ea_full_address}</p>
                       </div>
                       <dl class="mt-6 flex gap-4 sm:gap-6">
                         ${
-                          restaurant.sgmppd_rating
-                            ? `<a href=" ${restaurant.sgmppd_googleMapsUri}" target="_blank">
+                          restaurant.gmp_pd_rating
+                            ? `<a href=" ${restaurant.gmp_pd_googleMapsUri}" target="_blank">
                         <div class="flex flex-col-reverse">
-                          <dd class="text-xs text-gray-500">${restaurant.sgmppd_rating} (${restaurant.sgmppd_userRatingCount} avis)</dd>
+                          <dd class="text-xs text-gray-500">${restaurant.gmp_pd_rating} (${restaurant.gmp_pd_userRatingCount} avis)</dd>
                           <dt class="text-sm font-medium text-gray-600">Google Maps</dt>
                         </div></a>`
                             : ""
                         }
                         ${
-                          restaurant.stld_rating
-                            ? `<a href=" ${restaurant.stld_web_url}" target="_blank">
+                          restaurant.t_ld_rating
+                            ? `<a href=" ${restaurant.t_ld_web_url}" target="_blank">
                         <div class="flex flex-col-reverse">
-                          <dd class="text-xs text-gray-500">${restaurant.stld_rating} (${restaurant.stld_num_reviews} avis)</dd>
+                          <dd class="text-xs text-gray-500">${restaurant.t_ld_rating} (${restaurant.t_ld_num_reviews} avis)</dd>
                           <dt class="text-sm font-medium text-gray-600">Tripadvisor</dt>
                         </div></a>`
                             : ""
