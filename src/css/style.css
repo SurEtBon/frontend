@@ -12,3 +12,44 @@ body,
   height: 100%;
   width: 100vw;
 }
+div[class*="ea_synthese_eval_sanit_"] {
+  height: 30px !important;
+  width: 30px !important;
+  border: 3px solid;
+  border-radius: 50%;
+  line-height: 24px;
+  font-size: 11px;
+  text-align: center;
+}
+div.ea_synthese_eval_sanit_1 {
+  border-color: darkgreen;
+  background-color: rgba(0, 100, 0, 0.5);
+  color: whitesmoke;
+}
+p.ea_synthese_eval_sanit_1 {
+  color: darkgreen;
+}
+div.ea_synthese_eval_sanit_2 {
+  border-color: darkorange;
+  background-color: rgba(255, 140, 0, 0.5);
+  color: black;
+}
+p.ea_synthese_eval_sanit_2 {
+  color: darkorange;
+}
+div.ea_synthese_eval_sanit_3 {
+  border-color: darkred;
+  background-color: rgba(139, 0, 0, 0.5);
+  color: white;
+}
+p.ea_synthese_eval_sanit_3 {
+  color: darkred;
+}
+div.ea_synthese_eval_sanit_4 {
+  border-color: black;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+}
+p.ea_synthese_eval_sanit_4 {
+  color: black;
+}

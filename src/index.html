@@ -175,23 +175,38 @@
               <!-- @endif -->
               markersGroup.clearLayers();
               data.restaurants.forEach((restaurant) => {
-                let ea_couleur_synthese_eval_sanit = "black";
-                if (restaurant.ea_app_code_synthese_eval_sanit == 1) {
-                  ea_couleur_synthese_eval_sanit = "darkgreen";
-                } else if (restaurant.ea_app_code_synthese_eval_sanit == 2) {
-                  ea_couleur_synthese_eval_sanit = "darkorange";
-                } else if (restaurant.ea_app_code_synthese_eval_sanit == 3) {
-                  ea_couleur_synthese_eval_sanit = "darkred";
-                } else if (restaurant.ea_app_code_synthese_eval_sanit == 4) {
-                  ea_couleur_synthese_eval_sanit = "black";
+                let averageRating = null;
+                let totalCount = null;
+                if (restaurant.gmp_pd_rating && restaurant.t_ld_rating) {
+                  totalCount =
+                    restaurant.gmp_pd_userRatingCount +
+                    restaurant.t_ld_num_reviews;
+                  averageRating =
+                    (restaurant.gmp_pd_rating *
+                      restaurant.gmp_pd_userRatingCount +
+                      restaurant.t_ld_rating * restaurant.t_ld_num_reviews) /
+                    totalCount;
+                } else if (restaurant.gmp_pd_rating) {
+                  averageRating = restaurant.gmp_pd_rating;
+                } else if (restaurant.t_ld_rating) {
+                  averageRating = restaurant.t_ld_rating;
                 }
-                const marker = L.circleMarker(
+                if (averageRating) {
+                  averageRating = averageRating.toFixed(2);
+                }
+                const label = L.divIcon({
+                  className:
+                    "ea_synthese_eval_sanit_" +
+                    restaurant.ea_app_code_synthese_eval_sanit,
+                  html: averageRating,
+                });
+                const marker = L.marker(
                   [
                     restaurant.osm_ffs_meta_geo_point_latitude,
                     restaurant.osm_ffs_meta_geo_point_longitude,
                   ],
                   {
-                    color: ea_couleur_synthese_eval_sanit,
+                    icon: label,
                   },
                 );
                 marker.on("click", function () {
@@ -201,7 +216,7 @@
                           <button onclick="restaurantCard.classList.add('hidden');" class="text-gray-500 text-xl">&times;</button>
                       </div>
                       <div class="sm:flex sm:justify-between">
-                          <p class="mt-1 text-xs font-medium" style="color:${ea_couleur_synthese_eval_sanit};">Niveau d'hygiène ${restaurant.ea_synthese_eval_sanit.toLowerCase()}</p>
+                          <p class="mt-1 text-xs font-medium ea_synthese_eval_sanit_${restaurant.ea_app_code_synthese_eval_sanit}">Niveau d'hygiène ${restaurant.ea_synthese_eval_sanit.toLowerCase()}</p>
                       </div>
                       <div class="mt-4">
                         <p class="text-pretty text-sm text-gray-500">${restaurant.ea_full_address}</p>
@@ -223,6 +238,14 @@
                           <dd class="text-xs text-gray-500">${restaurant.t_ld_rating} (${restaurant.t_ld_num_reviews} avis)</dd>
                           <dt class="text-sm font-medium text-gray-600">Tripadvisor</dt>
                         </div></a>`
+                            : ""
+                        }
+                        ${
+                          averageRating && totalCount
+                            ? `<div class="flex flex-col-reverse">
+                          <dd class="text-xs text-gray-500">${averageRating} (${totalCount} avis)</dd>
+                          <dt class="text-sm font-medium text-gray-600">Général</dt>
+                        </div>`
                             : ""
                         }
                       </dl>
