@@ -25,11 +25,7 @@ Frontend application built with Tailwind CSS and Leaflet providing an interactiv
 </table>
 
 ```ShellSession
-npx tailwindcss -i ./src/css/style.css -o ./dist/css/style.css --watch
-```
-
-```ShellSession
-npm run gulp watch
+npm run gulp
 ```
 
 ```ShellSession
@@ -37,5 +33,17 @@ npx tailwindcss -i ./src/css/style.css -o ./dist/css/style.css --minify
 ```
 
 ```ShellSession
-npm run gulp
+npm run gulp generate-favicon
+```
+
+```ShellSession
+npm run gulp inject-favicon-markups
+```
+
+```ShellSession
+npm run gulp watch
+```
+
+```ShellSession
+npx tailwindcss -i ./src/css/style.css -o ./dist/css/style.css --watch
 ```
